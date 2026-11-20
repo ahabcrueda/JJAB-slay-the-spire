@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>이미지 경로 검사 | 다차원 원정</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,"Malgun Gothic",sans-serif;background:#0b1016;color:#eee8dc}
+body{max-width:1100px;margin:0 auto;padding:24px}
+h1{color:#f3d79d}.muted{color:#aeb6b8}.summary{position:sticky;top:0;padding:14px;background:#17212b;border:1px solid #697782;border-radius:10px;z-index:2}
+progress{width:100%;height:12px}#results{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:18px}
+.item{padding:10px;border:1px solid #51606b;border-radius:8px;background:#151e27;min-width:0}.item img{width:100%;height:110px;object-fit:contain;background:#0b1016;border-radius:5px}.item b{display:block;margin-top:7px;font-size:12px;overflow-wrap:anywhere}.ok{border-color:#527b5d}.bad{border-color:#a64f4f}.status{font-size:11px}.ok .status{color:#8ed39b}.bad .status{color:#ff918a}
+button{padding:8px 12px;border:1px solid #b89a65;border-radius:7px;background:#3b3020;color:#f6e5c4;cursor:pointer}
+</style></head>
+<body>
+<h1>다차원 원정 · 이미지 경로 검사</h1>
+<p class="muted">이 페이지는 GitHub Pages에 실제로 올라간 이미지 파일을 브라우저에서 하나씩 불러와 확인합니다.</p>
+<div class="summary"><b id="summary">검사 준비 중…</b><progress id="progress" max="1" value="0"></progress><p class="muted" id="hint">zdata.js와 zrelics-events.js를 불러오는 중입니다.</p><button onclick="location.reload()">다시 검사</button> <a href="index.html" style="color:#e9cb91;margin-left:12px">게임으로 돌아가기</a></div>
+<div id="results"></div>
+<script src="zdata.js"></script><script src="zrelics-events.js"></script>
+<script>
+(async()=>{
+ const out=document.getElementById('results'),summary=document.getElementById('summary'),progress=document.getElementById('progress'),hint=document.getElementById('hint');
+ const D=window.GAME_DATA;
+ if(!D){summary.textContent='실패: zdata.js 또는 zrelics-events.js를 불러오지 못했습니다.';hint.textContent='두 파일이 index.html과 같은 최상위 폴더에 있는지 확인하세요.';return;}
+ const refs=[];
+ const add=(group,name,src)=>{if(src)refs.push({group,name,src});};
+ Object.values(D.characters).forEach(x=>add('캐릭터',x.name,x.image));
+ Object.values(D.cards).forEach(x=>add('카드',x.name,x.art));
+ D.allMonsters.forEach(x=>add('몬스터',x.name,x.art));
+ (D.relics||[]).forEach(x=>add('유물',x.name,x.icon));
+ (D.events||[]).forEach(x=>add('이벤트',x.title,x.image));
+ for(let i=1;i<=5;i++)add('배경',`${i}장 배경`,`zassets/zbackgrounds/zact-${i}.svg`);
+ add('아이콘','파비콘','zassets/zfavicon.svg');
+ const unique=[...new Map(refs.map(x=>[x.src,x])).values()];
+ let done=0,ok=0; progress.max=unique.length;summary.textContent=`0 / ${unique.length} 검사 중`;
+ const tasks=unique.map(item=>new Promise(resolve=>{
+   const card=document.createElement('article');card.className='item';
+   const img=document.createElement('img');img.alt=item.name;
+   const title=document.createElement('b');title.textContent=`[${item.group}] ${item.name}`;
+   const status=document.createElement('div');status.className='status';status.textContent='확인 중…';
+   card.append(img,title,status);out.append(card);
+   const finish=success=>{card.classList.add(success?'ok':'bad');status.textContent=success?'정상 로드':'로드 실패 · '+item.src;done++;if(success)ok++;progress.value=done;summary.textContent=`${done} / ${unique.length} 검사 완료 · 정상 ${ok} · 실패 ${done-ok}`;resolve();};
+   img.onload=()=>finish(true);img.onerror=()=>finish(false);img.src=item.src;
+ }));
+ await Promise.all(tasks);
+ const bad=unique.length-ok;
+ hint.textContent=bad===0?'모든 게임 이미지 경로가 정상입니다. 게임 캐시를 새로고침해 보세요.':`실패한 ${bad}개 항목의 경로를 확인하세요. 파일이 GitHub 저장소에 없거나 폴더/파일 이름의 대소문자가 다릅니다.`;
+})();
+</script></body></html>
